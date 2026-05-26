@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+  # ──────────────────────────────────────────────────────
+  # Odoo Real-time Bridge
+  # ──────────────────────────────────────────────────────
+  bridge:
+    build: .
+    container_name: odoo_bridge
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+      # CORS — list your frontend origins
+      CORS_ORIGINS: http://localhost:5173,http://your-frontend.com
+
+      # Bridge local DB
+      PG_HOST: bridge_db
+      PG_PORT: 5432
+      PG_DATABASE: odoo_bridge
+      PG_USER: bridge_user
+      PG_PASSWORD: ${BRIDGE_DB_PASSWORD}
+
+      # Odoo 16 DB (read-only access)
+      ODOO_PG_HOST: ${ODOO_DB_HOST}
+      ODOO_PG_PORT: ${ODOO_DB_PORT:-5432}
+      ODOO_PG_DATABASE: ${ODOO_DB_NAME}
+      ODOO_PG_USER: ${ODOO_DB_READONLY_USER}
+      ODOO_PG_PASSWORD: ${ODOO_DB_READONLY_PASSWORD}
+
+      # Secrets
+      PUSH_SECRET_KEY: ${PUSH_SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      CLIENT_CREDENTIALS: ${CLIENT_CREDENTIALS}
+
+      LOG_LEVEL: info
+      LOG_DIR: /app/logs
+
+    volumes:
+      - bridge_logs:/app/logs
+    depends_on:
+      bridge_db:
+        condition: service_healthy
+    networks:
+      - bridge_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ──────────────────────────────────────────────────────
+  # Bridge Local PostgreSQL (cache + audit logs)
+  # ──────────────────────────────────────────────────────
+  bridge_db:
+    image: postgres:16-alpine
+    container_name: odoo_bridge_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: odoo_bridge
+      POSTGRES_USER: bridge_user
+      POSTGRES_PASSWORD: ${BRIDGE_DB_PASSWORD}
+    volumes:
+      - bridge_db_data:/var/lib/postgresql/data
+    networks:
+      - bridge_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bridge_user -d odoo_bridge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────────────
+  # Nginx Reverse Proxy (production)
+  # Handles SSL termination and WebSocket upgrades
+  # ──────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: odoo_bridge_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - bridge
+    networks:
+      - bridge_net
+
+volumes:
+  bridge_db_data:
+  bridge_logs:
+
+networks:
+  bridge_net:
+    driver: bridge
