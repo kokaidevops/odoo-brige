@@ -93,18 +93,18 @@ io.on('connection', (socket) => {
       if (userId) {
         // JIKA USER SUDAH LOGIN: Tampilkan semua halaman yang dipublikasikan (Public & Private)
         queryText = `
-          SELECT id, name, slug, access_type 
+          SELECT id, name, slug, access_type, icon 
           FROM dashboard_engine_page 
           WHERE is_published = true
-          ORDER BY id ASC
+          ORDER BY sequence, id ASC
         `;
       } else {
         // JIKA BELUM LOGIN: Hanya tampilkan halaman yang bertipe 'public'
         queryText = `
-          SELECT id, name, slug, access_type 
+          SELECT id, name, slug, access_type, icon 
           FROM dashboard_engine_page 
           WHERE is_published = true AND access_type = 'public'
-          ORDER BY id ASC
+          ORDER BY sequence, id ASC
         `;
       }
 
@@ -131,7 +131,7 @@ io.on('connection', (socket) => {
       console.log(`[Layout Engine] User [UID: ${userId || 'PUBLIC'}] meminta layout halaman dengan slug: ${slug}`);
 
       // Ambil data halaman berdasarkan slug
-      const pageQuery = `SELECT id, name, access_type, is_published FROM dashboard_engine_page WHERE slug = $1 AND is_published = true LIMIT 1`;
+      const pageQuery = `SELECT id, name, access_type, icon, is_published FROM dashboard_engine_page WHERE slug = $1 AND is_published = true LIMIT 1`;
       const pageRes = await db.query(pageQuery, [slug]);
 
       if (pageRes.rows.length === 0) {
@@ -160,7 +160,7 @@ io.on('connection', (socket) => {
 
       // Jika lolos sekuritas, ambil komponen item grafik di dalam halaman tersebut
       const itemsQuery = `
-        SELECT id, name, chart_type, allow_toggle_view, query 
+        SELECT id, name, chart_type, allow_toggle_view, query, xaxis_value_type, yaxis_value_type, icon 
         FROM dashboard_engine_item 
         WHERE page_id = $1 
         ORDER BY sequence, id
@@ -190,7 +190,7 @@ io.on('connection', (socket) => {
       console.log(`[Data Engine] Menerima request data untuk Item ID: ${itemId}`);
 
       const itemQuery = `
-        SELECT id, name, chart_type, query
+        SELECT id, name, chart_type, query, xaxis_value_type, yaxis_value_type, icon 
         FROM dashboard_engine_item
         WHERE id = $1 LIMIT 1
       `;
