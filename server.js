@@ -30,30 +30,8 @@ app.use(express.json({
 
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        // Mengizinkan skrip lokal jalankan aplikasi Anda
-        "default-src": ["'self'"],
-        
-        // FIX: Mengizinkan pemuatan gambar dan favicon lokal maupun dari server Odoo Anda
-        "img-src": ["'self'", "data:", "blob:", "*"], 
-        
-        // Memastikan skrip frontend Vue 3 Anda dapat dieksekusi dengan aman
-        "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        
-        // Mengizinkan gaya style CSS (termasuk Tailwind v4 & PrimeVue v4) dimuat
-        "style-src": ["'self'", "'unsafe-inline'"],
-        
-        // PENTING: Mengizinkan koneksi websocket Socket.io dan endpoint JSON-RPC Odoo
-        "connect-src": ["'self'", "ws:", "wss:", "http:", "https:"],
-        
-        // Mengizinkan font Plus Jakarta Sans / PrimeIcons
-        "font-src": ["'self'", "data:"],
-        
-        "object-src": ["'none'"],
-        "upgradeInsecureRequests": [],
-      },
-    },
+    crossOriginEmbedderPolicy: false, // Needed for Socket.io
+    contentSecurityPolicy: false,     // Configure separately if serving HTML
   })
 );
 
