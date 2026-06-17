@@ -17,7 +17,8 @@ const ODOO_DB = process.env.DB_NAME || 'live';
 const io = new Server(server, {
   cors: {
     origin: "*", // Pada produksi, batasi ke URL domain Vue 3 Anda
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -27,13 +28,6 @@ app.use(express.json({
     req.rawBody = buf.toString();
   }
 }));
-
-app.use(
-  helmet({
-    crossOriginEmbedderPolicy: false, // Needed for Socket.io
-    contentSecurityPolicy: false,     // Configure separately if serving HTML
-  })
-);
 
 const PUSH_SECRET_KEY = process.env.PUSH_SECRET_KEY;
 
