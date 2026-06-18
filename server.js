@@ -162,7 +162,7 @@ io.on('connection', (socket) => {
 
       // Jika lolos sekuritas, ambil komponen item grafik di dalam halaman tersebut
       const itemsQuery = `
-        SELECT id, name, chart_type, allow_toggle_view, query, xaxis_value_type, yaxis_value_type, icon, direction 
+        SELECT id, name, chart_type, allow_toggle_view, query, xaxis_value_type, yaxis_value_type, icon, direction, size, apply_filter, filter_format, filter_start_date, filter_end_date 
         FROM dashboard_engine_item 
         WHERE page_id = $1 
         ORDER BY sequence, id
@@ -183,7 +183,7 @@ io.on('connection', (socket) => {
   });
 
   // Event 3: Eksekusi Kueri Utama Grafik (Dinonaktifkan jika data dipush langsung oleh Odoo)
-  socket.on('get_chart_data', async ({ itemId }, callback) => {
+  socket.on('get_chart_data', async ({ itemId, filters = {} }, callback) => {
     try {
       if (!itemId) {
         return callback({ success: false, error: 'Item ID wajib disertakan.' });
@@ -192,7 +192,7 @@ io.on('connection', (socket) => {
       console.log(`[Data Engine] Menerima request data untuk Item ID: ${itemId}`);
 
       const itemQuery = `
-        SELECT id, name, chart_type, query, xaxis_value_type, yaxis_value_type, icon, direction 
+        SELECT id, name, chart_type, query, xaxis_value_type, yaxis_value_type, icon, direction, size, apply_filter, filter_format, filter_start_date, filter_end_date 
         FROM dashboard_engine_item
         WHERE id = $1 LIMIT 1
       `;
@@ -202,7 +202,11 @@ io.on('connection', (socket) => {
 
       // Jalankan kueri dinamis yang disimpan dari Odoo
       console.log(`[Data Engine] Mengeksekusi SQL untuk grafik [${itemRes.rows[0].name}]`);
-      const dataRes = await db.query(itemRes.rows[0].query);
+      let query = itemRes.rows[0].query;
+      if(itemRes.rows[0].apply_filter && query.includes(':filter_global')) {
+        query = query.replaceAll(':filter_global', `AND ${itemRes.rows[0].filter_start_date} >= '${filters.start}' AND ${itemRes.rows[0].filter_end_date} <= '${filters.end}'`);
+      }
+      const dataRes = await db.query(query);
       callback({ success: true, data: dataRes.rows, chart_type: itemRes.rows[0].chart_type });
     } catch (err) {
       console.error(`[Data Engine Error] Gagal memuat data grafik untuk ID ${itemId}:`, err.message);
