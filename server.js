@@ -162,7 +162,7 @@ io.on('connection', (socket) => {
 
       // Jika lolos sekuritas, ambil komponen item grafik di dalam halaman tersebut
       const itemsQuery = `
-        SELECT id, name, chart_type, allow_toggle_view, query, xaxis_value_type, yaxis_value_type, icon, direction, size, apply_filter, filter_format, filter_start_date, filter_end_date 
+        SELECT id, name, chart_type, allow_toggle_view, query, xaxis_value_type, yaxis_value_type, icon, direction, size 
         FROM dashboard_engine_item 
         WHERE page_id = $1 
         ORDER BY sequence, id
@@ -192,7 +192,7 @@ io.on('connection', (socket) => {
       console.log(`[Data Engine] Menerima request data untuk Item ID: ${itemId}`);
 
       const itemQuery = `
-        SELECT id, name, chart_type, query, xaxis_value_type, yaxis_value_type, icon, direction, size, apply_filter, filter_format, filter_start_date, filter_end_date 
+        SELECT id, name, chart_type, query, xaxis_value_type, yaxis_value_type, icon, direction, size 
         FROM dashboard_engine_item
         WHERE id = $1 LIMIT 1
       `;
@@ -203,10 +203,19 @@ io.on('connection', (socket) => {
       // Jalankan kueri dinamis yang disimpan dari Odoo
       console.log(`[Data Engine] Mengeksekusi SQL untuk grafik [${itemRes.rows[0].name}]`);
       let query = itemRes.rows[0].query;
-      if(itemRes.rows[0].apply_filter && query.includes(':filter_global')) {
-        query = query.replaceAll(':filter_global', `AND ${itemRes.rows[0].filter_start_date} >= '${filters.start}' AND ${itemRes.rows[0].filter_end_date} <= '${filters.end}'`);
+      const queryParams = [];
+      let paramIndex = 1;
+
+      for (const [key, value] of Object.entries(filters)) {
+        const placeholder = `:${key}`;
+        if (query.includes(placeholder)) {
+          query = query.replaceAll(placeholder, `$${paramIndex}`);
+          queryParams.push(value);
+          paramIndex++;
+        }
       }
-      const dataRes = await db.query(query);
+
+      const dataRes = await db.query(query, queryParams);
       callback({ success: true, data: dataRes.rows, chart_type: itemRes.rows[0].chart_type });
     } catch (err) {
       console.error(`[Data Engine Error] Gagal memuat data grafik untuk ID ${itemId}:`, err.message);
@@ -251,32 +260,6 @@ io.on('connection', (socket) => {
         }
       }
       const dataRes = await db.query(sqlQuery, queryParams);
-
-      // Jika frontend mengirimkan filter objek (e.g., { status_katup: 'QC_PASSED' })
-      // if (filters && Object.keys(filters).length > 0) {
-      //   for (const [key, value] of Object.entries(filters)) {
-      //     // Amankan nama kolom (key) dengan memastikan hanya berisi alfabet, angka, dan underscore
-      //     const safeKey = key.replace(/[^a-zA-Z0-9_]/g, '');
-          
-      //     if (safeKey) {
-      //       whereClauses.push(`core_data.${safeKey} = $${paramIndex}`);
-      //       queryParams.push(value);
-      //       paramIndex++;
-      //     }
-      //   }
-        
-      //   if (whereClauses.length > 0) {
-      //     finalQuery += ` WHERE ${whereClauses.join(' AND ')}`;
-      //   }
-      // }
-
-      // // Berikan batasan limit default demi menjaga performa memori server
-      // finalQuery += ` LIMIT 100`;
-
-      // console.log(`[Drilldown Engine] Mengeksekusi Kueri Aman: ${finalQuery}`);
-
-      // // STEP 3: Eksekusi kueri akhir menggunakan pool Read-Only database
-      // const dataRes = await db.query(finalQuery, queryParams);
 
       callback({ success: true, data: dataRes.rows });
     } catch (err) {
