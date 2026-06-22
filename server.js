@@ -245,9 +245,7 @@ io.on('connection', (socket) => {
         return callback({ success: false, error: 'Kueri detail (drilldown) belum dikonfigurasi di Odoo.' });
       }
 
-      let finalQuery = `SELECT * FROM (${sqlQuery}) AS core_data`;
       const queryParams = [];
-      let whereClauses = [];
       let paramIndex = 1;
 
       // Ubah :named_parameter (Odoo) menjadi $1, $2, dst (Postgres Node.js)
