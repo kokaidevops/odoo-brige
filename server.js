@@ -162,7 +162,7 @@ io.on('connection', (socket) => {
 
       // Jika lolos sekuritas, ambil komponen item grafik di dalam halaman tersebut
       const itemsQuery = `
-        SELECT id, name, chart_type, allow_toggle_view, query, xaxis_value_type, yaxis_value_type, icon, direction, size 
+        SELECT id, name, chart_type, allow_toggle_view, query, has_goal, icon, direction, size 
         FROM dashboard_engine_item 
         WHERE page_id = $1 
         ORDER BY sequence, id
@@ -192,7 +192,7 @@ io.on('connection', (socket) => {
       console.log(`[Data Engine] Menerima request data untuk Item ID: ${itemId}`);
 
       const itemQuery = `
-        SELECT id, name, chart_type, query, xaxis_value_type, yaxis_value_type, icon, direction, size 
+        SELECT id, name, chart_type, query, has_goal, icon, direction, size 
         FROM dashboard_engine_item
         WHERE id = $1 LIMIT 1
       `;
