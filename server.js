@@ -162,7 +162,7 @@ io.on('connection', (socket) => {
 
       // Jika lolos sekuritas, ambil komponen item grafik di dalam halaman tersebut
       const itemsQuery = `
-        SELECT id, name, chart_type, allow_toggle_view, query, has_goal, icon, direction, size 
+        SELECT id, name, chart_type, allow_toggle_view, query, has_goal, icon, direction, size, action, filter_action 
         FROM dashboard_engine_item 
         WHERE page_id = $1 
         ORDER BY sequence, id
@@ -192,7 +192,7 @@ io.on('connection', (socket) => {
       console.log(`[Data Engine] Menerima request data untuk Item ID: ${itemId}`);
 
       const itemQuery = `
-        SELECT id, name, chart_type, query, has_goal, icon, direction, size 
+        SELECT id, name, chart_type, query, has_goal, icon, direction, size, action, filter_action 
         FROM dashboard_engine_item
         WHERE id = $1 LIMIT 1
       `;
@@ -224,7 +224,7 @@ io.on('connection', (socket) => {
   });
 
   // Event 4: Eksekusi Kueri Detail Drawer Dinamis (Menangani Multi-Filter)
-  socket.on('get_chart_detail_multi', async ({ itemId, filters }, callback) => {
+  socket.on('get_chart_detail_multi', async ({ itemId, filters, action = false }, callback) => {
     try {
       if (!itemId) {
         return callback({ success: false, error: 'Item ID wajib disertakan.' });
@@ -233,15 +233,15 @@ io.on('connection', (socket) => {
       console.log(`[Drilldown Engine] Permintaan detail transaksi untuk Item ID: ${itemId}`);
       console.log(`[Drilldown Engine] Filter yang diterapkan:`, filters);
 
-      const itemQuery = `SELECT id, name, query_detail FROM dashboard_engine_item WHERE id = $1 LIMIT 1`;
+      const itemQuery = `SELECT id, name, query_detail, query_action FROM dashboard_engine_item WHERE id = $1 LIMIT 1`;
       const itemRes = await db.query(itemQuery, [itemId]);
       
       if (itemRes.rows.length === 0) {
         return callback({ success: false, error: 'Komponen grafik tidak ditemukan.' });
       }
 
-      let sqlQuery = itemRes.rows[0].query_detail;
-      if (!sqlQuery) {
+      let sqlQuery = !action ? itemRes.rows[0].query_detail : itemRes.rows[0].query_action;
+      if (sqlQuery == null) {
         return callback({ success: false, error: 'Kueri detail (drilldown) belum dikonfigurasi di Odoo.' });
       }
 
